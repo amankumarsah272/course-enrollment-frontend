@@ -1,69 +1,111 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, type FormEvent } from "react";
+
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage("");
+    setLoading(true);
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/login`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim(), password }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMessage(
+          typeof data.message === "string"
+            ? data.message
+            : "Login failed."
+        );
+        return;
+      }
+
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+
+      window.location.href =
+        data.user.role === "ADMIN" ? "/admin" : "/student";
+    } catch {
+      setMessage("Cannot connect to backend. Check if it is running.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
+    <main className="flex min-h-screen items-center justify-center bg-[#dfe6e9] px-4 py-8">
+      <section className="w-full max-w-md rounded-[20px] bg-[#dfe6e9] p-8 shadow-[8px_8px_16px_#b8c1c5,-8px_-8px_16px_#ffffff]">
+        <div className="mb-7 text-center">
+          <h1 className="text-3xl font-bold text-[#2d3436]">
+            Welcome Back
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="mt-2 text-sm text-[#636e72]">
+            Course Enrollment System
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label htmlFor="email" className="mb-2 block text-sm font-semibold text-[#2d3436]">
+              Email Address
+            </label>
+            <input
+              id="email"
+              type="email"
+              required
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="w-full rounded-[14px] border-0 bg-[#dfe6e9] px-4 py-3 text-[#2d3436] placeholder:text-[#636e72] shadow-[inset_4px_4px_8px_#b8c1c5,inset_-4px_-4px_8px_#ffffff] outline-none focus:ring-2 focus:ring-[#0984e3]"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </div>
+
+          <div>
+            <label htmlFor="password" className="mb-2 block text-sm font-semibold text-[#2d3436]">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              className="w-full rounded-[14px] border-0 bg-[#dfe6e9] px-4 py-3 text-[#2d3436] placeholder:text-[#636e72] shadow-[inset_4px_4px_8px_#b8c1c5,inset_-4px_-4px_8px_#ffffff] outline-none focus:ring-2 focus:ring-[#0984e3]"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-[14px] bg-[#dfe6e9] py-3 font-bold text-[#2d3436] shadow-[5px_5px_10px_#b8c1c5,-5px_-5px_10px_#ffffff] transition hover:shadow-[inset_3px_3px_6px_#b8c1c5,inset_-3px_-3px_6px_#ffffff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0984e3] disabled:opacity-60"
           >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            {loading ? "Logging in..." : "Login"}
+          </button>
+
+          {message && (
+            <p role="alert" className="break-words text-center text-sm font-medium text-[#c0392b]">
+              {message}
+            </p>
+          )}
+        </form>
+      </section>
+    </main>
   );
 }
