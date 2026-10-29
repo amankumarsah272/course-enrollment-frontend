@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Course Enrollment System - Frontend
 
-## Getting Started
+A responsive Course Enrollment System built with Next.js, TypeScript, and Tailwind CSS. The application provides separate dashboards for Admin and Student users with a neumorphic (Soft UI) design.
 
-First, run the development server:
+## Live URLs
+
+- **Frontend Application:** https://course-enrollment-frontend-tau.vercel.app/
+- **Backend API:** https://course-enrollment-backend-mg4b.onrender.com
+- **GitHub Repository:** https://github.com/amankumarsah272/course-enrollment-frontend
+
+## Tech Stack
+
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- REST API integration
+- JWT authentication
+
+## Features
+
+- Admin and Student login
+- Role-based dashboards
+- Admin course management
+- Update course status
+- Browse available courses
+- Enroll in courses
+- View enrolled courses under My Courses
+- Prevent duplicate enrollments
+- Responsive interface
+- Neumorphic Soft UI styling
+
+## Application Pages
+
+- Login
+- Admin Dashboard
+- Student Dashboard
+- My Courses
+
+## UI Design
+
+The application follows the required neumorphic design using:
+
+- Background color: `#dfe6e9`
+- Soft raised cards with rounded corners
+- Raised buttons and inset input fields
+- Responsive layouts and readable form controls
+
+## Demo Login Credentials
+
+### Admin
+- Email: `admin@example.com`
+- Password: `Admin@123`
+
+### Student
+- Email: `student@example.com`
+- Password: `Student@123`
+
+These demo accounts are provided for assignment evaluation.
+
+## Run Locally
+
+### Prerequisites
+- Node.js and npm
+- Running backend API
+
+### Installation
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+git clone https://github.com/amankumarsah272/course-enrollment-frontend.git
+cd course-enrollment-frontend
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create a `.env.local` file in the project root:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3001
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Start the frontend:
 
-## Learn More
+```bash
+npm run dev -- --port 3002
+```
 
-To learn more about Next.js, take a look at the following resources:
+Open the application at:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**http://localhost:3002**
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Ensure the backend is running on port `3001`.
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The frontend is deployed on Vercel and communicates with the NestJS backend hosted on Render. The deployed frontend uses the backend URL configured in Vercel environment variables.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Author
+
+Course Enrollment System assignment project.
