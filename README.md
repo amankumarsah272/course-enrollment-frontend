@@ -1,6 +1,6 @@
-# Course Enrollment System - Frontend
+# Course Enrollment System — Frontend
 
-A responsive Course Enrollment System built with Next.js, TypeScript, and Tailwind CSS. The application provides separate dashboards for Admin and Student users with a neumorphic (Soft UI) design.
+A responsive Course Enrollment System built with Next.js, TypeScript, and Tailwind CSS. It provides separate dashboards for Admin and Student users with a neumorphic (Soft UI) design.
 
 ## Live URLs
 
@@ -24,6 +24,9 @@ A responsive Course Enrollment System built with Next.js, TypeScript, and Tailwi
 - Admin course management
 - Update course status
 - Browse available courses
+- Server-side pagination for course listings
+- Six courses per page by default
+- Previous and Next page navigation
 - Enroll in courses
 - View enrolled courses under My Courses
 - Prevent duplicate enrollments
@@ -36,6 +39,15 @@ A responsive Course Enrollment System built with Next.js, TypeScript, and Tailwi
 - Admin Dashboard
 - Student Dashboard
 - My Courses
+
+## Pagination
+
+The Admin and Student dashboards display courses with pagination.
+
+- Six courses per page by default
+- Previous and Next navigation
+- Pagination data retrieved from the backend API
+- Students see available active courses
 
 ## UI Design
 
@@ -78,7 +90,7 @@ Create a `.env.local` file in the project root:
 NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
-Start the frontend:
+### Start the frontend
 
 ```bash
 npm run dev -- --port 3002
