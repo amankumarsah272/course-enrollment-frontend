@@ -17,7 +17,17 @@ type Enrollment = {
   };
 };
 
+type Pagination = {
+  currentPage: number;
+  pageSize: number;
+  totalCourses: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+
 const API = process.env.NEXT_PUBLIC_API_URL;
+const PAGE_SIZE = 6;
 
 export default function StudentPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -26,21 +36,29 @@ export default function StudentPage() {
   const [loading, setLoading] = useState(true);
   const [enrollingId, setEnrollingId] = useState("");
 
-  const loadCourses = useCallback(async () => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination>({
+    currentPage: 1,
+    pageSize: PAGE_SIZE,
+    totalCourses: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
+
+  const loadCourses = useCallback(async (pageToLoad = currentPage) => {
+    setLoading(true);
+
     try {
       const token = localStorage.getItem("token") || "";
 
       const [coursesResponse, enrolledResponse] = await Promise.all([
-        fetch(`${API}/courses`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        fetch(`${API}/courses?page=${pageToLoad}&limit=${PAGE_SIZE}`, {
+          headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
         }),
         fetch(`${API}/enrollments/my`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
           cache: "no-store",
         }),
       ]);
@@ -49,41 +67,49 @@ export default function StudentPage() {
       const enrolledData = await enrolledResponse.json();
 
       if (!coursesResponse.ok) {
-        throw new Error(
-          coursesData.message || "Could not load courses"
-        );
+        throw new Error(coursesData.message || "Could not load courses");
       }
 
       if (!enrolledResponse.ok) {
         throw new Error(
-          enrolledData.message || "Could not load your enrollments"
+          enrolledData.message || "Could not load your enrollments",
         );
       }
 
-      const enrollmentRecords: Enrollment[] =
-        enrolledData.courses ?? [];
+      const enrollmentRecords: Enrollment[] = enrolledData.courses ?? [];
+      const pageInfo: Pagination = coursesData.pagination ?? {
+        currentPage: pageToLoad,
+        pageSize: PAGE_SIZE,
+        totalCourses: coursesData.courses?.length ?? 0,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      };
+
+      if (pageToLoad > Math.max(1, pageInfo.totalPages)) {
+        setCurrentPage(Math.max(1, pageInfo.totalPages));
+        return;
+      }
 
       setCourses(coursesData.courses ?? []);
+      setPagination(pageInfo);
+      setCurrentPage(pageToLoad);
 
       setEnrolledCourseIds(
         enrollmentRecords
-          .map((enrollment) =>
-            enrollment.courseId ?? enrollment.course?.id
-          )
-          .filter((id): id is string => Boolean(id))
+          .map((enrollment) => enrollment.courseId ?? enrollment.course?.id)
+          .filter((id): id is string => Boolean(id)),
       );
 
       setMessage("");
     } catch (error) {
       setMessage(
-        error instanceof Error
-          ? error.message
-          : "Something went wrong"
+        error instanceof Error ? error.message : "Something went wrong",
       );
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage]);
 
   useEffect(() => {
     const user = localStorage.getItem("user");
@@ -107,10 +133,7 @@ export default function StudentPage() {
   }, [loadCourses]);
 
   async function enroll(courseId: string) {
-    if (
-      enrolledCourseIds.includes(courseId) ||
-      enrollingId !== ""
-    ) {
+    if (enrolledCourseIds.includes(courseId) || enrollingId !== "") {
       return;
     }
 
@@ -133,22 +156,18 @@ export default function StudentPage() {
         throw new Error(
           Array.isArray(data.message)
             ? data.message.join(", ")
-            : data.message || "Enrollment failed"
+            : data.message || "Enrollment failed",
         );
       }
 
       setEnrolledCourseIds((previous) =>
-        previous.includes(courseId)
-          ? previous
-          : [...previous, courseId]
+        previous.includes(courseId) ? previous : [...previous, courseId],
       );
 
       setMessage(data.message || "Course enrolled successfully");
     } catch (error) {
       setMessage(
-        error instanceof Error
-          ? error.message
-          : "Something went wrong"
+        error instanceof Error ? error.message : "Something went wrong",
       );
     } finally {
       setEnrollingId("");
@@ -175,6 +194,7 @@ export default function StudentPage() {
 
         <div className="flex flex-wrap gap-3">
           <button
+            type="button"
             onClick={() => (window.location.href = "/my-courses")}
             className="rounded-[14px] px-5 py-3 font-semibold shadow-[5px_5px_10px_#b8c1c5,-5px_-5px_10px_#ffffff] transition hover:shadow-[inset_3px_3px_6px_#b8c1c5,inset_-3px_-3px_6px_#ffffff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0984e3]"
           >
@@ -182,6 +202,7 @@ export default function StudentPage() {
           </button>
 
           <button
+            type="button"
             onClick={logout}
             className="rounded-[14px] px-5 py-3 font-semibold shadow-[5px_5px_10px_#b8c1c5,-5px_-5px_10px_#ffffff] transition hover:shadow-[inset_3px_3px_6px_#b8c1c5,inset_-3px_-3px_6px_#ffffff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0984e3]"
           >
@@ -201,7 +222,14 @@ export default function StudentPage() {
       )}
 
       <section className="mx-auto mt-8 max-w-6xl">
-        <h2 className="mb-5 text-xl font-bold">Available Courses</h2>
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-bold">Available Courses</h2>
+          {!loading && (
+            <span className="rounded-xl px-3 py-2 text-sm font-semibold shadow-[inset_3px_3px_6px_#b8c1c5,inset_-3px_-3px_6px_#ffffff]">
+              {pagination.totalCourses} courses
+            </span>
+          )}
+        </div>
 
         {loading ? (
           <p className="text-[#636e72]" role="status">
@@ -212,48 +240,73 @@ export default function StudentPage() {
             No active courses available right now.
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {courses.map((course) => {
-              const isEnrolled = enrolledCourseIds.includes(course.id);
+          <>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {courses.map((course) => {
+                const isEnrolled = enrolledCourseIds.includes(course.id);
 
-              return (
-                <article
-                  key={course.id}
-                  className="flex flex-col rounded-[20px] p-6 shadow-[8px_8px_16px_#b8c1c5,-8px_-8px_16px_#ffffff]"
-                >
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#0984e3]">
-                    {isEnrolled ? "Your Course" : "Available Course"}
-                  </span>
-
-                  <h3 className="mt-3 text-xl font-bold">
-                    {course.title}
-                  </h3>
-
-                  <p className="mt-3 flex-1 break-words text-sm leading-6 text-[#636e72]">
-                    {course.description}
-                  </p>
-
-                  <p className="mt-4 text-sm font-semibold">
-                    Duration: {course.duration}
-                  </p>
-
-                  <button
-                    onClick={() => void enroll(course.id)}
-                    disabled={isEnrolled || enrollingId !== ""}
-                    className="mt-6 w-full rounded-[14px] px-5 py-3 font-bold shadow-[5px_5px_10px_#b8c1c5,-5px_-5px_10px_#ffffff] transition hover:shadow-[inset_3px_3px_6px_#b8c1c5,inset_-3px_-3px_6px_#ffffff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0984e3] disabled:cursor-not-allowed disabled:opacity-60"
+                return (
+                  <article
+                    key={course.id}
+                    className="flex flex-col rounded-[20px] p-6 shadow-[8px_8px_16px_#b8c1c5,-8px_-8px_16px_#ffffff]"
                   >
-                    {enrollingId === course.id
-                      ? "Enrolling..."
-                      : isEnrolled
-                        ? "Already Enrolled"
-                        : enrollingId !== ""
-                          ? "Please wait..."
-                          : "Enroll Now"}
-                  </button>
-                </article>
-              );
-            })}
-          </div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#0984e3]">
+                      {isEnrolled ? "Your Course" : "Available Course"}
+                    </span>
+
+                    <h3 className="mt-3 text-xl font-bold">{course.title}</h3>
+
+                    <p className="mt-3 flex-1 break-words text-sm leading-6 text-[#636e72]">
+                      {course.description}
+                    </p>
+
+                    <p className="mt-4 text-sm font-semibold">
+                      Duration: {course.duration}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => void enroll(course.id)}
+                      disabled={isEnrolled || enrollingId !== ""}
+                      className="mt-6 w-full rounded-[14px] px-5 py-3 font-bold shadow-[5px_5px_10px_#b8c1c5,-5px_-5px_10px_#ffffff] transition hover:shadow-[inset_3px_3px_6px_#b8c1c5,inset_-3px_-3px_6px_#ffffff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0984e3] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {enrollingId === course.id
+                        ? "Enrolling..."
+                        : isEnrolled
+                          ? "Already Enrolled"
+                          : enrollingId !== ""
+                            ? "Please wait..."
+                            : "Enroll Now"}
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+
+            <div className="mt-7 flex flex-wrap items-center justify-center gap-4">
+              <button
+                type="button"
+                disabled={!pagination.hasPreviousPage || loading}
+                onClick={() => void loadCourses(currentPage - 1)}
+                className="rounded-[14px] px-5 py-3 font-semibold shadow-[5px_5px_10px_#b8c1c5,-5px_-5px_10px_#ffffff] transition disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Previous
+              </button>
+
+              <span className="text-sm font-semibold">
+                Page {pagination.currentPage} of {pagination.totalPages}
+              </span>
+
+              <button
+                type="button"
+                disabled={!pagination.hasNextPage || loading}
+                onClick={() => void loadCourses(currentPage + 1)}
+                className="rounded-[14px] px-5 py-3 font-semibold shadow-[5px_5px_10px_#b8c1c5,-5px_-5px_10px_#ffffff] transition disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </>
         )}
       </section>
     </main>

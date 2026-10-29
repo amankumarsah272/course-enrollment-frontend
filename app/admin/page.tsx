@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
@@ -13,7 +12,17 @@ type Course = {
   status: CourseStatus;
 };
 
+type Pagination = {
+  currentPage: number;
+  pageSize: number;
+  totalCourses: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+};
+
 const API = process.env.NEXT_PUBLIC_API_URL;
+const PAGE_SIZE = 6;
 
 export default function AdminPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -26,17 +35,32 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination>({
+    currentPage: 1,
+    pageSize: PAGE_SIZE,
+    totalCourses: 0,
+    totalPages: 1,
+    hasNextPage: false,
+    hasPreviousPage: false,
+  });
+
   const authHeaders = () => ({
     Authorization: `Bearer ${localStorage.getItem("token") || ""}`,
     "Content-Type": "application/json",
   });
 
-  const loadCourses = useCallback(async () => {
+  const loadCourses = useCallback(async (pageToLoad = currentPage) => {
+    setLoading(true);
+
     try {
-      const response = await fetch(`${API}/courses`, {
-        headers: authHeaders(),
-        cache: "no-store",
-      });
+      const response = await fetch(
+        `${API}/courses?page=${pageToLoad}&limit=${PAGE_SIZE}`,
+        {
+          headers: authHeaders(),
+          cache: "no-store",
+        },
+      );
 
       const data = await response.json();
 
@@ -44,7 +68,26 @@ export default function AdminPage() {
         throw new Error(data.message || "Could not fetch courses");
       }
 
-      setCourses(data.courses ?? []);
+      const result: Course[] = data.courses ?? [];
+      const pageInfo: Pagination = data.pagination ?? {
+        currentPage: pageToLoad,
+        pageSize: PAGE_SIZE,
+        totalCourses: result.length,
+        totalPages: 1,
+        hasNextPage: false,
+        hasPreviousPage: false,
+      };
+
+      // If the last course on this page was deleted, go back a page.
+      if (pageToLoad > Math.max(1, pageInfo.totalPages)) {
+        setCurrentPage(Math.max(1, pageInfo.totalPages));
+        return;
+      }
+
+      setCourses(result);
+      setPagination(pageInfo);
+      setCurrentPage(pageToLoad);
+      setMessage("");
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Something went wrong",
@@ -52,7 +95,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage]);
 
   useEffect(() => {
     const user = localStorage.getItem("user");
@@ -93,12 +136,14 @@ export default function AdminPage() {
         throw new Error(data.message || "Course creation failed");
       }
 
-      setMessage(data.message || "Course created successfully");
       setTitle("");
       setDescription("");
       setDuration("");
       setStatus("ACTIVE");
-      await loadCourses();
+      setMessage(data.message || "Course created successfully");
+
+      setCurrentPage(1);
+      await loadCourses(1);
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Something went wrong",
@@ -113,7 +158,6 @@ export default function AdminPage() {
     setMessage("");
     setUpdatingId(id);
 
-    // Update UI immediately; restore it if the API request fails.
     setCourses((current) =>
       current.map((course) =>
         course.id === id ? { ...course, status: newStatus } : course,
@@ -134,7 +178,7 @@ export default function AdminPage() {
       }
 
       setMessage(data.message || "Course status updated successfully");
-      await loadCourses();
+      await loadCourses(currentPage);
     } catch (error) {
       setCourses(previousCourses);
       setMessage(
@@ -165,7 +209,7 @@ export default function AdminPage() {
       }
 
       setMessage(data.message || "Course deleted successfully");
-      await loadCourses();
+      await loadCourses(currentPage);
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : "Something went wrong",
@@ -188,6 +232,7 @@ export default function AdminPage() {
         </div>
 
         <button
+          type="button"
           onClick={logout}
           className="rounded-[14px] px-5 py-3 font-semibold shadow-[5px_5px_10px_#b8c1c5,-5px_-5px_10px_#ffffff] transition hover:shadow-[inset_3px_3px_6px_#b8c1c5,inset_-3px_-3px_6px_#ffffff]"
         >
@@ -278,7 +323,7 @@ export default function AdminPage() {
           <div className="mb-5 flex items-center justify-between gap-3">
             <h2 className="text-xl font-bold">All Courses</h2>
             <span className="rounded-xl px-3 py-2 text-sm font-semibold shadow-[inset_3px_3px_6px_#b8c1c5,inset_-3px_-3px_6px_#ffffff]">
-              {courses.length} courses
+              {pagination.totalCourses} courses
             </span>
           </div>
 
@@ -289,57 +334,86 @@ export default function AdminPage() {
               No courses yet. Add your first course.
             </div>
           ) : (
-            <div className="grid gap-5 sm:grid-cols-2">
-              {courses.map((course) => (
-                <article
-                  key={course.id}
-                  className="rounded-[20px] p-5 shadow-[8px_8px_16px_#b8c1c5,-8px_-8px_16px_#ffffff]"
-                >
-                  <label
-                    htmlFor={`status-${course.id}`}
-                    className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0984e3]"
+            <>
+              <div className="grid gap-5 sm:grid-cols-2">
+                {courses.map((course) => (
+                  <article
+                    key={course.id}
+                    className="rounded-[20px] p-5 shadow-[8px_8px_16px_#b8c1c5,-8px_-8px_16px_#ffffff]"
                   >
-                    Course Status
-                  </label>
+                    <label
+                      htmlFor={`status-${course.id}`}
+                      className="mb-2 block text-xs font-bold uppercase tracking-wider text-[#0984e3]"
+                    >
+                      Course Status
+                    </label>
 
-                  <select
-                    id={`status-${course.id}`}
-                    aria-label={`Status for ${course.title}`}
-                    value={course.status}
-                    disabled={updatingId === course.id}
-                    onChange={(e) =>
-                      void updateCourseStatus(
-                        course.id,
-                        e.target.value as CourseStatus,
-                      )
-                    }
-                    className="w-full rounded-[14px] bg-[#dfe6e9] px-3 py-2 text-sm text-[#2d3436] shadow-[inset_3px_3px_6px_#b8c1c5,inset_-3px_-3px_6px_#ffffff] outline-none focus:ring-2 focus:ring-[#0984e3] disabled:opacity-60"
+                    <select
+                      id={`status-${course.id}`}
+                      aria-label={`Status for ${course.title}`}
+                      value={course.status}
+                      disabled={updatingId === course.id}
+                      onChange={(e) =>
+                        void updateCourseStatus(
+                          course.id,
+                          e.target.value as CourseStatus,
+                        )
+                      }
+                      className="w-full rounded-[14px] bg-[#dfe6e9] px-3 py-2 text-sm text-[#2d3436] shadow-[inset_3px_3px_6px_#b8c1c5,inset_-3px_-3px_6px_#ffffff] outline-none focus:ring-2 focus:ring-[#0984e3] disabled:opacity-60"
+                    >
+                      <option value="ACTIVE">Active</option>
+                      <option value="INACTIVE">Inactive</option>
+                    </select>
+
+                    {updatingId === course.id && (
+                      <p className="mt-2 text-xs text-[#636e72]">Updating status...</p>
+                    )}
+
+                    <h3 className="mt-3 text-lg font-bold">{course.title}</h3>
+                    <p className="mt-2 break-words text-sm text-[#636e72]">
+                      {course.description}
+                    </p>
+                    <p className="mt-3 text-sm font-semibold">
+                      Duration: {course.duration}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => void deleteCourse(course.id)}
+                      className="mt-5 w-full rounded-[14px] px-4 py-3 text-sm font-bold text-[#c0392b] shadow-[5px_5px_10px_#b8c1c5,-5px_-5px_10px_#ffffff] transition hover:shadow-[inset_3px_3px_6px_#b8c1c5,inset_-3px_-3px_6px_#ffffff]"
+                    >
+                      Delete Course
+                    </button>
+                  </article>
+                ))}
+              </div>
+
+              {pagination.totalCourses > 0 && (
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-4">
+                  <button
+                    type="button"
+                    disabled={!pagination.hasPreviousPage || loading}
+                    onClick={() => void loadCourses(currentPage - 1)}
+                    className="rounded-[14px] px-5 py-3 font-semibold shadow-[5px_5px_10px_#b8c1c5,-5px_-5px_10px_#ffffff] transition disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
-                  </select>
+                    Previous
+                  </button>
 
-                  {updatingId === course.id && (
-                    <p className="mt-2 text-xs text-[#636e72]">Updating status...</p>
-                  )}
-
-                  <h3 className="mt-3 text-lg font-bold">{course.title}</h3>
-                  <p className="mt-2 break-words text-sm text-[#636e72]">
-                    {course.description}
-                  </p>
-                  <p className="mt-3 text-sm font-semibold">
-                    Duration: {course.duration}
-                  </p>
+                  <span className="text-sm font-semibold">
+                    Page {pagination.currentPage} of {pagination.totalPages}
+                  </span>
 
                   <button
-                    onClick={() => void deleteCourse(course.id)}
-                    className="mt-5 w-full rounded-[14px] px-4 py-3 text-sm font-bold text-[#c0392b] shadow-[5px_5px_10px_#b8c1c5,-5px_-5px_10px_#ffffff] transition hover:shadow-[inset_3px_3px_6px_#b8c1c5,inset_-3px_-3px_6px_#ffffff]"
+                    type="button"
+                    disabled={!pagination.hasNextPage || loading}
+                    onClick={() => void loadCourses(currentPage + 1)}
+                    className="rounded-[14px] px-5 py-3 font-semibold shadow-[5px_5px_10px_#b8c1c5,-5px_-5px_10px_#ffffff] transition disabled:cursor-not-allowed disabled:opacity-40"
                   >
-                    Delete Course
+                    Next
                   </button>
-                </article>
-              ))}
-            </div>
+                </div>
+              )}
+            </>
           )}
         </section>
       </div>
